@@ -121,8 +121,10 @@ class AniDBAPI:
 
     def _send(self, command, tags=None):
         if self._socket_state != SocketState.IDLE:
+            self._close_database()
             raise SocketNotReadyException
         if command != 'AUTH' and self._session_id is None:
+            self._close_database()
             raise APINotLoggedInException
 
         last_message_delta = time() - self._last_message
@@ -143,6 +145,7 @@ class AniDBAPI:
 
     def _handle_response(self):
         if self._socket_state != SocketState.SENT or self._api_command is None:
+            self._close_database()
             raise SocketNotReadyException
         response = self._socket.recv(1400).rstrip()
         lines = response.decode('utf-8').split('\n')
