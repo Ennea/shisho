@@ -15,6 +15,8 @@ shisho.py path/to/file.mkv
 
 ### Renaming all files in a folder
 
+This is not recursive.
+
 ```
 shisho.py path/to/folder
 ```
@@ -35,11 +37,11 @@ shisho.py -h
 
 ### What's opinionated about shisho?
 
-There is no config, and as such the format files are renamed to is fixed. It is like that because I've written shisho only for myself, but I'm still releasing it in case it may be useful for somebody else. The format is:
+There is no config, and as such the format used to rename files is fixed. It is like that because I've written shisho only for myself, but I'm still releasing it in case it may be useful for somebody else. The format is:
 ```
 {romaji anime name} - {episode number} - {episode name} [{group name}]
 ```
 
 ### Where does shisho store its data, and what data does it store?
 
-When you run shisho for the first time (or with the `--prompt-login` flag) it will ask you your AniDB login. Any data retrieved from the AniDB API is also stored. Both are written to an SQLite database which is saved in `$XDG_DATA_HOME/shisho` or (if `XDG_DATA_HOME` is not set) `~/.local/share/shisho`.
+When you run shisho for the first time (or with the `--prompt-login` flag) it will ask you your AniDB login. Any data retrieved from the AniDB API is also stored (and used in subsequent runs). Both are written to an SQLite database which is saved in `$XDG_DATA_HOME/shisho` or `~/.local/share/shisho` (if `XDG_DATA_HOME` is not set).
