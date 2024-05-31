@@ -77,9 +77,9 @@ class AniDBAPI:
 
     def _load_database(self, prompt_login):
         if 'XDG_DATA_HOME' in os.environ:
-            data_path = Path(os.environ['XDG_DATA_HOME']) / 'anidb-rename'
+            data_path = Path(os.environ['XDG_DATA_HOME']) / 'shisho'
         else:
-            data_path = Path('~/.local/share/anidb-rename').expanduser()
+            data_path = Path('~/.local/share/shisho').expanduser()
 
         if not data_path.exists():
             data_path.mkdir(parents=True)
@@ -296,7 +296,7 @@ def process_file(path, api_client, dry_run):
         print('')
 
 
-argument_parser = argparse.ArgumentParser('anidb-rename', description='Opinionated AniDB rename utility. Hashes files and renames them in a non-configurable format if they are known to AniDB.')
+argument_parser = argparse.ArgumentParser('shisho', description='Opinionated AniDB rename utility. Renames files in a non-configurable format if they are known to AniDB.')
 argument_parser.add_argument('-d', '--dry-run', action='store_true', help='do not actually rename any files')
 argument_parser.add_argument('-v', '--verbose', action='store_true')
 argument_parser.add_argument('--prompt-login', action='store_true', help='get prompted for your AniDB login info again')
