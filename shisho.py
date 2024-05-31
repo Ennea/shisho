@@ -12,11 +12,11 @@ from pathlib import Path
 from subprocess import check_output, CalledProcessError
 from time import time, sleep
 
+
 CGRAY = '\x1b[90m'
-CGREEN = '\x1b[32m'
-CBLUE = '\x1b[34m'
 CBRED = '\x1b[91m'
 CBGREEN = '\x1b[92m'
+CBBLUE = '\x1b[94m'
 CRESET = '\x1b[0m'
 
 
@@ -42,9 +42,9 @@ class AniDBAPI:
         self._last_message = 0
 
         self._load_database(prompt_login)
-        self._login()
 
     def _login(self):
+        logging.info('Logging into the API')
         user = self._db_cursor.execute('SELECT value FROM meta WHERE name = "user"').fetchone()
         pass_ = self._db_cursor.execute('SELECT value FROM meta WHERE name = "pass"').fetchone()
         if user is None or pass_ is None:
@@ -56,7 +56,7 @@ class AniDBAPI:
             'pass': pass_[0],
             'protover': '3',
             'client': 'anidbrenamepy',
-            'clientver': '1',
+            'clientver': '2',
             'enc': 'UTF-8'
         })
         if not self._handle_response():
@@ -124,12 +124,11 @@ class AniDBAPI:
             self._close_database()
             raise SocketNotReadyException
         if command != 'AUTH' and self._session_id is None:
-            self._close_database()
-            raise APINotLoggedInException
+            self._login()
 
         last_message_delta = time() - self._last_message
-        if last_message_delta < 2:
-            sleep(2 - last_message_delta)
+        if last_message_delta < 3:
+            sleep(3 - last_message_delta)
 
         if command != 'AUTH':
             if tags is None:
@@ -142,12 +141,17 @@ class AniDBAPI:
         self._socket.sendto(f'{command}{self._pack_tags(tags)}\n'.encode('utf-8'), ('api.anidb.net', 9000))
         self._socket_state = SocketState.SENT
         self._api_command = command
+        self._last_message = time()
 
     def _handle_response(self):
         if self._socket_state != SocketState.SENT or self._api_command is None:
             self._close_database()
             raise SocketNotReadyException
-        response = self._socket.recv(1400).rstrip()
+
+        try:
+            response = self._socket.recv(1400).rstrip()
+        except TimeoutError:
+            return None
         lines = response.decode('utf-8').split('\n')
         ret_code, data = lines[0].split(' ', maxsplit=1)
         logging.info('Got response %s', ret_code)
@@ -164,11 +168,11 @@ class AniDBAPI:
     def _handle_generic_error(self, ret_code, data):
         match ret_code:
             case 505:
-                logging.error('Illegal input or access denied')
+                logging.error('API: Illegal input or access denied')
             case 555:
-                logging.error('Banned:', data)
+                logging.error('API: Banned')
             case 598:
-                logging.error('Unknown command')
+                logging.error('API: Unknown command')
             case 600:
                 logging.error('API error')
             case 601 | 602 | 604:
@@ -188,13 +192,13 @@ class AniDBAPI:
                 logging.info('Successfully logged into the API')
                 result = True
             case (500, *_):
-                logging.error('Login failed')
+                logging.error('API: Login failed')
             case (503, *_) | (504, *_):
-                logging.error('Login failed - outdated or banned client')
+                logging.error('API: Login failed - outdated or banned client')
             case (505, *_):
-                logging.error('Login failed - access denied')
+                logging.error('API: Login failed - access denied')
             case _:
-                logging.error(f'Unknown AUTH response {ret_code}; data="{data}"')
+                logging.error(f'API: Unknown AUTH response {ret_code}; data="{data}"')
         return result
 
     def _handle_LOGOUT(self, ret_code, data, _):
@@ -203,7 +207,7 @@ class AniDBAPI:
             case 203:
                 logging.info('Successfully logged out')
             case _:
-                logging.error(f'Error logging out; {ret_code} {data}')
+                logging.error(f'API: Error logging out; {ret_code} {data}')
 
     def _handle_FILE(self, ret_code, data, lines):
         if self._handle_generic_error(ret_code, data):
@@ -256,7 +260,7 @@ def ed2k(path):
 
 def replace_characters(name):
     '''Replace some characters in file names with better ones'''
-    new_name = name.replace('`', "'")  # anidb uses backticks instead of semicolons
+    new_name = name.replace('`', "'")  # anidb uses backticks instead of apostrophes
     new_name = new_name.replace('/', '\u2215')  # replace real slashes with unicode "division slash"
     return new_name
 
@@ -268,8 +272,9 @@ def process_file(path, api_client, dry_run):
         return
 
     file_size, ed2k_hash = ed2k_result
-    print(f'{CBLUE}Done!{CRESET}')
-    print(f'{file_size} {CGRAY}bytes, ed2k hash{CRESET} {ed2k_hash}{CGRAY}; querying...{CRESET} ', end='', flush=True)
+    print(f'{CBBLUE}Done!{CRESET}')
+    logging.info(f'{file_size} bytes; ed2k: {ed2k_hash}')
+    print(f'{CGRAY}Querying AniDB...{CRESET} ', end='', flush=True)
     file_info_result = api_client.get_file_info(file_size, ed2k_hash)
     if file_info_result is None:
         print(f'{CBRED}Failed!{CRESET}')
@@ -279,12 +284,12 @@ def process_file(path, api_client, dry_run):
         new_name = replace_characters(f'{anime_name} - {episode_number} - {episode_name} [{group_name}]')
         new_path = path.with_name(new_name + ''.join(path.suffixes))
         if new_path == path:
-            print('No rename necessary')
+            print(f'{CBBLUE}No rename necessary{CRESET}')
         else:
-            print(f'{CGRAY}{dry_run and "Would rename" or "Renaming"}{CRESET} {path} {CGRAY}to{CRESET} {new_path}')
+            print(f'{CGRAY}{dry_run and "Would rename to" or "Renaming to"}{CRESET} {new_path}')
             if not dry_run:
                 if new_path.exists():
-                    print(f'{new_path} already exists. {CBRED}Failed to rename.{CRESET}')
+                    print(f'{new_path} {CBRED}already exists. Failed to rename.{CRESET}')
                 else:
                     path.rename(new_path)
                     print(f'{CBGREEN}Rename successful.{CRESET}')
