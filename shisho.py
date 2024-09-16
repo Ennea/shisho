@@ -282,7 +282,7 @@ def process_file(path, api_client, dry_run):
         print(f'{CBGREEN}Success!{CRESET}')
         anime_name, episode_number, episode_name, group_name = file_info_result
         new_name = replace_characters(f'{anime_name} - {episode_number} - {episode_name} [{group_name}]')
-        new_path = path.with_name(new_name + ''.join(path.suffixes))
+        new_path = path.with_name(new_name + path.suffix)
         if new_path == path:
             print(f'{CBBLUE}No rename necessary{CRESET}')
         else:
